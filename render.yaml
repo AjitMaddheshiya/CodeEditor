@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: codesync-server
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && node index.js
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: PORT
+        value: 4000
+
+  - type: web
+    name: codesync-client
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    publishPath: client/dist
+    envVars:
+      - key: VITE_BACKEND_URL
+        fromService:
+          type: web
+          name: codesync-server
+          property: url
