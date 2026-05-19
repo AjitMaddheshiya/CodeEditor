@@ -5,7 +5,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import Axios from "axios"
 import { toast } from 'sonner';
 
-const socket = io(import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000');
+const socket = io(import.meta.env.VITE_BACKEND_URL || 'https://codesync-server-ymmg.onrender.com');
 
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript', icon: '⚡' },
@@ -46,7 +46,7 @@ function Playground() {
   
   const getRoomContent = async (roomName) => {
     try {
-      const res = await Axios.get(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}/get-room-content`, {
+      const res = await Axios.get(`${import.meta.env.VITE_BACKEND_URL || 'https://codesync-server-ymmg.onrender.com'}/get-room-content`, {
         params: {
           roomName
         }
@@ -60,7 +60,7 @@ function Playground() {
 
   const getRoomUsers = async (roomName) => {
     try {
-      const res = await Axios.get(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}/get-room-users`, {
+      const res = await Axios.get(`${import.meta.env.VITE_BACKEND_URL || 'https://codesync-server-ymmg.onrender.com'}/get-room-users`, {
         params: {
           roomName
         }
