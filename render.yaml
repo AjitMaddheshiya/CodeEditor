@@ -18,3 +18,7 @@ services:
     envVars:
       - key: VITE_BACKEND_URL
         value: https://codesync-server-ymmg.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
