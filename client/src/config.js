@@ -5,14 +5,9 @@ const getBackendUrl = () => {
   }
 
   const hostname = window.location.hostname;
-  // If deployed on Render, try to match the client's subdomain with the server's subdomain
+  // If deployed on Render, default to the user's actual backend URL
   if (hostname.includes('.onrender.com')) {
-    if (hostname.startsWith('codesync-client-')) {
-      return `https://${hostname.replace('codesync-client-', 'codesync-server-')}`;
-    }
-    if (hostname === 'codesync-client.onrender.com') {
-      return 'https://codesync-server.onrender.com';
-    }
+    return 'https://codesync-server-ymmg.onrender.com';
   }
 
   return 'http://localhost:4000';

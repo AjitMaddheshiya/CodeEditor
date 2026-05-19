@@ -17,4 +17,4 @@ services:
     publishPath: client/dist
     envVars:
       - key: VITE_BACKEND_URL
-        value: https://codesync-server-czol.onrender.com
+        value: https://codesync-server-ymmg.onrender.com
