@@ -17,9 +17,16 @@ const io = socketIo(server, {
 });
 
 // MongoDB connection
+let isDbConnected = false;
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://ajitDB:Ajit%4012345@cluster0.8e69h0p.mongodb.net/codesync?retryWrites=true&w=majority&appName=Cluster0')
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('Error connecting to MongoDB:', err));
+  .then(() => {
+    console.log('Connected to MongoDB');
+    isDbConnected = true;
+  })
+  .catch(err => {
+    console.error('Error connecting to MongoDB:', err);
+    isDbConnected = false;
+  });
 
 const roomSchema = new mongoose.Schema({
   name: String,
@@ -40,6 +47,68 @@ const roomSchema = new mongoose.Schema({
 
 const Room = mongoose.model('Room', roomSchema);
 
+// Memory database fallback store
+const memoryStore = {};
+
+const findRoom = async (roomName) => {
+  if (isDbConnected) {
+    try {
+      const room = await Room.findOne({ name: roomName });
+      if (room) return room;
+    } catch (err) {
+      console.error('DB error in findRoom:', err);
+    }
+  }
+  return memoryStore[roomName] || null;
+};
+
+const createNewRoom = async (roomName) => {
+  const roomData = {
+    name: roomName,
+    content: '',
+    users: [],
+    chatMessages: []
+  };
+
+  if (isDbConnected) {
+    try {
+      const dbRoom = new Room(roomData);
+      return await dbRoom.save();
+    } catch (err) {
+      console.error('DB error creating room, falling back to memory:', err);
+    }
+  }
+
+  // Memory fallback document mock
+  memoryStore[roomName] = {
+    ...roomData,
+    save: async function() {
+      memoryStore[this.name] = this;
+      return this;
+    }
+  };
+  return memoryStore[roomName];
+};
+
+const findRoomsByUserSocket = async (socketId) => {
+  if (isDbConnected) {
+    try {
+      return await Room.find({ 'users.socketId': socketId });
+    } catch (err) {
+      console.error('DB error in findRoomsByUserSocket:', err);
+    }
+  }
+
+  const results = [];
+  for (const name in memoryStore) {
+    const room = memoryStore[name];
+    if (room.users && room.users.some(u => u.socketId === socketId)) {
+      results.push(room);
+    }
+  }
+  return results;
+};
+
 const PORT = process.env.PORT || 4000;
 
 // Create room endpoint with better error handling
@@ -51,13 +120,7 @@ app.post('/create-room', async (req, res) => {
     }
     
     const roomName = uuidv4();
-    const room = new Room({
-      name: roomName,
-      content: '',
-      users: [],
-      chatMessages: []
-    });
-    await room.save();
+    await createNewRoom(roomName);
     console.log(`Room created: ${roomName} by ${userName}`);
     res.json({ roomName });
   } catch (error) {
@@ -70,7 +133,7 @@ app.post('/create-room', async (req, res) => {
 app.get('/get-room-content', async (req, res) => {
   try {
     const roomName = req.query.roomName;
-    const room = await Room.findOne({ name: roomName });
+    const room = await findRoom(roomName);
     
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
@@ -87,7 +150,7 @@ app.get('/get-room-content', async (req, res) => {
 app.get('/get-room-users', async (req, res) => {
   try {
     const roomName = req.query.roomName;
-    const room = await Room.findOne({ name: roomName });
+    const room = await findRoom(roomName);
     
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
@@ -105,7 +168,7 @@ app.get('/get-room-users', async (req, res) => {
 app.get('/get-room-chat', async (req, res) => {
   try {
     const roomName = req.query.roomName;
-    const room = await Room.findOne({ name: roomName });
+    const room = await findRoom(roomName);
     
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
@@ -121,7 +184,7 @@ app.get('/get-room-chat', async (req, res) => {
 // Helper function to update and broadcast user list
 const updateAndBroadcastUsers = async (roomName) => {
   try {
-    const room = await Room.findOne({ name: roomName });
+    const room = await findRoom(roomName);
     if (room) {
       console.log(`Broadcasting updated user list for room ${roomName}:`, room.users.map(u => u.userName));
       io.to(roomName).emit('usersList', room.users);
@@ -140,7 +203,7 @@ io.on('connection', (socket) => {
       console.log(`User ${userName} (${socket.id}) joining room: ${roomName}`);
       
       // Add user to room in database
-      const room = await Room.findOne({ name: roomName });
+      const room = await findRoom(roomName);
       if (room) {
         // Remove user if already exists (in case of reconnection)
         room.users = room.users.filter(user => user.socketId !== socket.id);
@@ -175,7 +238,7 @@ io.on('connection', (socket) => {
   
   socket.on('updateText', async (roomName, updatedText) => {
     try {
-      const room = await Room.findOne({ name: roomName });
+      const room = await findRoom(roomName);
       if (room) {
         room.content = updatedText;
         await room.save();
@@ -190,7 +253,7 @@ io.on('connection', (socket) => {
   socket.on('sendMessage', async (data) => {
     try {
       const { roomName, message } = data;
-      const room = await Room.findOne({ name: roomName });
+      const room = await findRoom(roomName);
       
       if (room) {
         // Add message to database
@@ -216,7 +279,7 @@ io.on('connection', (socket) => {
   
   socket.on('leaveRoom', async (roomName) => {
     try {
-      const room = await Room.findOne({ name: roomName });
+      const room = await findRoom(roomName);
       if (room) {
         // Remove user from room
         const userIndex = room.users.findIndex(user => user.socketId === socket.id);
@@ -243,7 +306,7 @@ io.on('connection', (socket) => {
     
     // Remove user from all rooms they were in
     try {
-      const rooms = await Room.find({ 'users.socketId': socket.id });
+      const rooms = await findRoomsByUserSocket(socket.id);
       for (const room of rooms) {
         const userIndex = room.users.findIndex(user => user.socketId === socket.id);
         if (userIndex !== -1) {
