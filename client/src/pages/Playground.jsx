@@ -4,8 +4,9 @@ import Editor from "@monaco-editor/react";
 import { useParams, useLocation } from 'react-router-dom';
 import Axios from "axios"
 import { toast } from 'sonner';
+import { BACKEND_URL } from '../config';
 
-const socket = io(import.meta.env.VITE_BACKEND_URL || 'https://codesync-server-ymmg.onrender.com');
+const socket = io(BACKEND_URL);
 
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript', icon: '⚡' },
@@ -46,7 +47,7 @@ function Playground() {
   
   const getRoomContent = async (roomName) => {
     try {
-      const res = await Axios.get(`${import.meta.env.VITE_BACKEND_URL || 'https://codesync-server-ymmg.onrender.com'}/get-room-content`, {
+      const res = await Axios.get(`${BACKEND_URL}/get-room-content`, {
         params: {
           roomName
         }
@@ -60,7 +61,7 @@ function Playground() {
 
   const getRoomUsers = async (roomName) => {
     try {
-      const res = await Axios.get(`${import.meta.env.VITE_BACKEND_URL || 'https://codesync-server-ymmg.onrender.com'}/get-room-users`, {
+      const res = await Axios.get(`${BACKEND_URL}/get-room-users`, {
         params: {
           roomName
         }

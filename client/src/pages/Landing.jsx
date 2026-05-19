@@ -3,6 +3,7 @@ import { motion, useMotionTemplate, useMotionValue, animate } from 'framer-motio
 import { useNavigate } from 'react-router-dom';
 import Axios from 'axios';
 import { toast } from 'sonner';
+import { BACKEND_URL } from '../config';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ const Landing = () => {
     
     setIsLoading(true);
     try {
-      const response = await Axios.post(`${import.meta.env.VITE_BACKEND_URL || 'https://codesync-server-ymmg.onrender.com'}/create-room`, {
+      const response = await Axios.post(`${BACKEND_URL}/create-room`, {
         userName: userName.trim()
       });
       const newRoomId = response.data.roomName;
